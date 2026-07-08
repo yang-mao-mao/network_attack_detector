@@ -1,0 +1,51 @@
+[
+  {
+    "rule_id": "BEH-2001",
+    "name": "Port scan detection",
+    "category": "Port Scan",
+    "level": "Medium",
+    "event_type": "distinct_dst_ports",
+    "window_seconds": 60,
+    "threshold": 20,
+    "group_by": ["src_ip", "dst_ip"],
+    "condition": {
+      "protocol": "TCP"
+    },
+    "enabled": true,
+    "description": "Same source IP touches many ports of the same destination in a short time.",
+    "suggestion": "Check whether the source is an authorized scanner."
+  },
+  {
+    "rule_id": "BEH-2002",
+    "name": "Brute force login detection",
+    "category": "Brute Force",
+    "level": "High",
+    "event_type": "login_attempts",
+    "window_seconds": 60,
+    "threshold": 10,
+    "group_by": ["src_ip", "dst_ip"],
+    "condition": {
+      "http_path_keywords": ["login", "signin", "auth"]
+    },
+    "enabled": true,
+    "description": "Same source IP repeatedly accesses login-related paths.",
+    "suggestion": "Enable rate limiting, CAPTCHA, and account lockout policies."
+  },
+  {
+    "rule_id": "BEH-2003",
+    "name": "High frequency HTTP requests",
+    "category": "Suspicious Traffic",
+    "level": "Medium",
+    "event_type": "request_rate",
+    "window_seconds": 10,
+    "threshold": 100,
+    "group_by": ["src_ip", "dst_ip"],
+    "condition": {
+      "protocol": "HTTP"
+    },
+    "enabled": true,
+    "description": "Same source IP sends too many HTTP requests in a short time.",
+    "suggestion": "Review request source and apply traffic throttling if needed."
+  }
+]
+
