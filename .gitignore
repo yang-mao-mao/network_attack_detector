@@ -42,7 +42,7 @@ Thumbs.db
 **/tasks
 *.db
 *.sqlite3
-
+**/learn
 # Data exports (keep directory, ignore generated files)
 data/exports/*.csv
 data/exports/*.html
