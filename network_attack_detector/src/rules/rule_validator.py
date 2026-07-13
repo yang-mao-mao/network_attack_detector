@@ -43,7 +43,6 @@ class RuleValidator:
             "level",
             "protocol",
             "match_type",
-            "pattern",
         }
     )
     # 检测引擎当前支持读取的目标字段，避免无效字段静默失效。
