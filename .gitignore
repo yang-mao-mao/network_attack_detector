@@ -46,3 +46,4 @@ Thumbs.db
 # Data exports (keep directory, ignore generated files)
 data/exports/*.csv
 data/exports/*.html
+task*.md
