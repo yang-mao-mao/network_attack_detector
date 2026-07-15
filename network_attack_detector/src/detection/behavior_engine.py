@@ -17,7 +17,9 @@ class BehaviorEngine:
         for rule in self.rules:
             if not rule.enabled or not self._condition_matches(rule, packet):
                 continue
+
             state = self.tracker.get_state(rule, packet)
+            # 通用计数（所有包都计）
             state.packet_count += 1
             state.request_count += 1
             if packet.dst_port is not None:
@@ -25,17 +27,24 @@ class BehaviorEngine:
             if packet.http and packet.http.path:
                 state.urls.add(packet.http.path)
 
+            # 针对 login_attempts 单独计数（仅当为登录请求）
+            if rule.event_type == "login_attempts" and self._is_login_request(rule, packet):
+                state.failed_login_count += 1
+
             evidence = self._check_rule(rule, packet, state)
             if evidence:
                 alerts.append(self._build_alert(rule, packet, evidence))
+                # 触发后可选重置状态
+                self.tracker.reset_state(rule, packet)
         return alerts
 
     def _check_rule(self, rule: BehaviorRule, packet: PacketInfo, state) -> str | None:
         if rule.event_type == "distinct_dst_ports" and len(state.dst_ports) >= rule.threshold:
             return f"distinct destination ports: {len(state.dst_ports)}"
-        if rule.event_type == "login_attempts" and self._is_login_request(rule, packet):
-            if state.request_count >= rule.threshold:
-                return f"login attempts in window: {state.request_count}"
+        if rule.event_type == "login_attempts":
+            # 使用 failed_login_count 而非 request_count
+            if state.failed_login_count >= rule.threshold:
+                return f"login attempts in window: {state.failed_login_count}"
         if rule.event_type == "request_rate" and state.request_count >= rule.threshold:
             return f"requests in window: {state.request_count}"
         return None
@@ -50,6 +59,7 @@ class BehaviorEngine:
     @staticmethod
     def _is_login_request(rule: BehaviorRule, packet: PacketInfo) -> bool:
         if not packet.http or not packet.http.path:
+            # 非HTTP流量按常见端口判定（SSH, FTP, RDP等）
             return packet.dst_port in {21, 22, 3389}
         keywords = rule.condition.get("http_path_keywords", [])
         path = packet.http.path.lower()
@@ -74,4 +84,3 @@ class BehaviorEngine:
             suggestion=rule.suggestion,
             packet_id=packet.packet_id,
         )
-
