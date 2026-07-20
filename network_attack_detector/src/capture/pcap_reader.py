@@ -1,10 +1,19 @@
 from pathlib import Path
 from typing import Iterator, Optional, List, Callable
+from dataclasses import dataclass
 
 from scapy.all import rdpcap, PcapReader as ScapyPcapReader
 from scapy.packet import Packet
 
-from src.core.models import PcapPacket
+@dataclass
+class PcapPacket:
+    """解析后的 pcap 数据包信息"""
+    index: int              # 在文件中的序号
+    timestamp: float        # 捕获时间戳
+    raw_packet: Packet      # 原始 Scapy 包对象
+    
+    def __repr__(self) -> str:
+        return f"PcapPacket(index={self.index}, ts={self.timestamp:.6f}, {self.raw_packet.summary()})"
 
 class PcapReader:
     """

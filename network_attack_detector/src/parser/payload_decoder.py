@@ -1,7 +1,13 @@
 import codecs
 from typing import Optional
+from dataclasses import dataclass
 
-from src.core.models import DecodeResult
+@dataclass
+class DecodeResult:
+    text: Optional[str] = None
+    encoding: Optional[str] = None
+    confidence: Optional[float] = None
+    is_binary: Optional[bool] = None
 
 def decode_payload(
     payload: Optional[bytes],

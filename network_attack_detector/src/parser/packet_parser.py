@@ -1,7 +1,8 @@
 from typing import Iterator, Optional, List
 from scapy.layers.inet import IP, TCP, UDP
 
-from src.capture import PcapReader, PcapPacket, PacketInfo
+from src.capture import PcapReader, PcapPacket, my_PacketInfo
+from src.core.models import PacketInfo, HttpInfo, Protocol
 from .http_parser import HttpParser
 from .payload_decoder import decode_payload
 
@@ -11,9 +12,43 @@ class PacketParser:
     """
     
     def __init__(self):
-        self.parsed: List[PacketInfo] = []
+        self.parsed: List[my_PacketInfo] = []
+        self.results: List[PacketInfo] = []
     
-    def parse(self, pcap_packets: Iterator[PcapPacket]) -> Iterator[PacketInfo]:
+    def to_Pi(parsed:List[my_PacketInfo]):
+        results = []
+        for p in parsed:
+            h = HttpInfo(
+                method=p.http.method,
+                host=p.http.host,
+                url=p.http.url,
+                path=p.http.path,
+                query=p.http.query,
+                user_agent=p.http.get_header("User-Agent"),
+                status_code=p.http.status_code,
+                headers=p.http.headers,
+                body=p.http.body
+            )
+            result = PacketInfo(
+                packet_id=p.index,
+                timestamp=p.timestamp,
+                src_ip=p.src_ip,
+                dst_ip=p.dst_ip,
+                src_port=p.src_port,
+                dst_port=p.dst_port,
+                protocol=Protocol(p.protocol),
+                length=p.length,
+                payload=p.raw_payload,
+                payload_text=p.decoded_payload,
+                http=h,
+                raw_summary=p.summary(),
+                interface=p.interface,
+                metadata=None
+            )
+            results.append(result)
+        return results
+    
+    def parse(self, pcap_packets: Iterator[PcapPacket]) -> Iterator[my_PacketInfo]:
         """
         流式解析 pcap 包，逐个 yield 解析结果。
         """
@@ -22,16 +57,16 @@ class PacketParser:
             if parsed:
                 yield parsed
     
-    def parse_all(self, pcap_packets: Iterator[PcapPacket]) -> List[PacketInfo]:
+    def parse_all(self, pcap_packets: Iterator[PcapPacket]) -> List[my_PacketInfo]:
         """
         解析全部，返回列表。
         """
         return list(self.parse(pcap_packets))
     
-    def _parse_single(self, pcap_pkt: PcapPacket) -> Optional[PacketInfo]:
+    def _parse_single(self, pcap_pkt: PcapPacket) -> Optional[my_PacketInfo]:
         """解析单个 PcapPacket"""
         packet = pcap_pkt.raw_packet
-        result = PacketInfo(
+        result = my_PacketInfo(
             index=pcap_pkt.index,
             timestamp=pcap_pkt.timestamp,
             layers=[layer.name for layer in packet.layers()]

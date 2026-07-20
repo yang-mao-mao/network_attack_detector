@@ -1,7 +1,23 @@
 import psutil
 import socket
 from typing import List, Optional
-from src.core.models import InterfaceInfo
+from dataclasses import dataclass
+
+@dataclass
+class InterfaceInfo:
+    """网卡信息数据类"""
+    name: str                    # 系统网卡名（如 eth0、WLAN0、en0）
+    friendly_name: str           # 友好名称（Windows 上可能为 "Wi-Fi"）
+    ip_addresses: List[str]      # 绑定的 IP 地址列表
+    mac_address: Optional[str]  # MAC 地址
+    is_up: bool                 # 是否启用
+    is_loopback: bool           # 是否为回环接口
+    speed: Optional[int]        # 链路速度（Mbps），可能为 None
+    mtu: Optional[int]          # 最大传输单元
+    
+    def __str__(self) -> str:
+        status = "UP" if self.is_up else "DOWN"
+        return f"{self.name} ({status}) | IP: {self.ip_addresses} | MAC: {self.mac_address}"
 
 class CaptureInterface:
     """

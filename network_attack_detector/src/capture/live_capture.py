@@ -4,12 +4,67 @@ import time
 from pathlib import Path
 from collections import defaultdict, deque
 from typing import Callable, Optional, List, Dict, Any
+from dataclasses import dataclass, field
+from enum import Enum, auto
 
 from scapy.all import AsyncSniffer, Packet, get_if_list, wrpcap
 from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 
-from src.core.models import CaptureState, PacketInfo
+class CaptureState(Enum):
+    """抓包状态的枚举类"""
+    IDLE = auto()       # 空闲
+    RUNNING = auto()    # 运行中
+    PAUSED = auto()     # 已暂停
+    STOPPED = auto()    # 已停止
+    ERROR = auto()      # 出错
+
+
+@dataclass
+class my_PacketInfo:
+    """解析后的数据包信息"""
+    index: int = None
+    timestamp: float = None
+    interface: str = None
+    protocol: Optional[str] = None      # TCP/UDP/ICMP/Other
+    length: int = None
+    raw_packet: Packet = None            # 原始 scapy 包，供深度分析
+    src_mac: Optional[str] = None
+    dst_mac: Optional[str] = None
+    eth_type: Optional[str] = None
+    # IP 层
+    src_ip: Optional[str] = None
+    dst_ip: Optional[str] = None
+    ip_version: Optional[int] = None
+    ip_ttl: Optional[int] = None
+    ip_proto: Optional[str] = None
+    # TCP 层
+    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
+    tcp_seq: Optional[int] = None
+    tcp_ack: Optional[int] = None
+    tcp_flags: Optional[str] = None
+    tcp_window: Optional[int] = None
+    # UDP 层
+    udp_length: Optional[int] = None
+    # HTTP 层（由 HttpParser 提供）
+    http = None
+    # Payload 原始与解码
+    raw_payload: Optional[bytes] = None
+    decoded_payload = None
+    # 协议栈标识
+    layers: List[str] = field(default_factory=list)
+    
+    def summary(self) -> str:
+        parts = [
+            f"[{self.interface}]",
+            f"{self.protocol or 'UNKNOWN'}",
+            f"{self.src_ip or self.src_mac}:{self.src_port or '-'}",
+            "->",
+            f"{self.dst_ip or self.dst_mac}:{self.dst_port or '-'}",
+            f"({self.length} bytes)"
+        ]
+        return " ".join(parts)
 
 class LiveCapture:
     """
@@ -32,8 +87,8 @@ class LiveCapture:
         
         self._state = CaptureState.IDLE
         self._sniffer: Optional[AsyncSniffer] = None
-        self._packet_queue: queue.Queue[PacketInfo] = queue.Queue()
-        self._handlers: List[Callable[[PacketInfo], None]] = []
+        self._packet_queue: queue.Queue[my_PacketInfo] = queue.Queue()
+        self._handlers: List[Callable[[my_PacketInfo], None]] = []
         self._worker_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -134,7 +189,7 @@ class LiveCapture:
             except Exception as e:
                 print(f"解析包出错: {e}")
     
-    def _parse_packet(self, packet: Packet) -> PacketInfo:
+    def _parse_packet(self, packet: Packet) -> my_PacketInfo:
         """解析 scapy 包为结构化信息"""
         # 基础信息
         timestamp = float(packet.time)
@@ -175,7 +230,7 @@ class LiveCapture:
         else:
             protocol = "NON-IP"
         
-        return PacketInfo(
+        return my_PacketInfo(
             timestamp=timestamp,
             interface=iface,
             src_mac=src_mac,
@@ -208,7 +263,7 @@ class LiveCapture:
                 except Exception as e:
                     print(f"Handler error: {e}")
     
-    def _update_stats(self, info: PacketInfo) -> None:
+    def _update_stats(self, info: my_PacketInfo) -> None:
         """更新统计信息"""
         with self._lock:
             self._stats["total"] += 1
@@ -223,11 +278,11 @@ class LiveCapture:
     
     # ========== 公共 API ==========
     
-    def add_handler(self, handler: Callable[[PacketInfo], None]) -> None:
+    def add_handler(self, handler: Callable[[my_PacketInfo], None]) -> None:
         """注册包处理回调"""
         self._handlers.append(handler)
     
-    def remove_handler(self, handler: Callable[[PacketInfo], None]) -> None:
+    def remove_handler(self, handler: Callable[[my_PacketInfo], None]) -> None:
         """移除包处理回调"""
         if handler in self._handlers:
             self._handlers.remove(handler)
@@ -245,7 +300,7 @@ class LiveCapture:
     def queue_size(self) -> int:
         return self._packet_queue.qsize()
     
-    def get_packet(self, timeout: Optional[float] = None) -> Optional[PacketInfo]:
+    def get_packet(self, timeout: Optional[float] = None) -> Optional[my_PacketInfo]:
         """阻塞获取一个包（用于同步消费）"""
         try:
             return self._packet_queue.get(timeout=timeout)
@@ -259,14 +314,14 @@ class CaptureHandlers:
     """ 
     # ========== 日志输出 ==========
     @staticmethod
-    def console_logger(show_payload: bool = False, max_payload: int = 200) -> Callable[[PacketInfo], None]:
+    def console_logger(show_payload: bool = False, max_payload: int = 200) -> Callable[[my_PacketInfo], None]:
         """
         打印到控制台。
         Args:
             show_payload: 是否显示原始 payload 内容
             max_payload: payload 最大显示字节数
         """
-        def handler(info: PacketInfo) -> None:
+        def handler(info: my_PacketInfo) -> None:
             ts = time.strftime("%H:%M:%S", time.localtime(info.timestamp))
             line = f"[{ts}] {info.summary()}"
             print(line)
@@ -283,7 +338,7 @@ class CaptureHandlers:
         return handler
     # ========== 数据存储 ==========
     @staticmethod
-    def pcap_writer( path: str, batch_size: int = 20 ) -> Callable[[PacketInfo], None]:
+    def pcap_writer( path: str, batch_size: int = 20 ) -> Callable[[my_PacketInfo], None]:
         """
         保存为 pcap 文件（Wireshark 可读）。
         批量写入减少 IO。
@@ -291,7 +346,7 @@ class CaptureHandlers:
         buffer: List[Packet] = []
         filepath = Path(path)
         
-        def handler(info: PacketInfo) -> None:
+        def handler(info: my_PacketInfo) -> None:
             buffer.append(info.raw_packet)
             
             if len(buffer) >= batch_size:
@@ -308,13 +363,13 @@ class CaptureHandlers:
         return handler
     # ========== 安全检测类 ==========
     @staticmethod
-    def port_scan_detector(threshold: int = 10, window: float = 60.0) -> Callable[[PacketInfo], None]:
+    def port_scan_detector(threshold: int = 10, window: float = 60.0) -> Callable[[my_PacketInfo], None]:
         """
         检测端口扫描：单个 IP 在短时间内访问大量不同端口。
         """
         history: Dict[str, deque[tuple[float, int]]] = defaultdict(deque)
         
-        def handler(info: PacketInfo) -> None:
+        def handler(info: my_PacketInfo) -> None:
             if not info.src_ip or not info.dst_port:
                 return
             
@@ -343,13 +398,13 @@ class CaptureHandlers:
         return handler
     
     @staticmethod
-    def syn_flood_detector(threshold: int = 50, window: float = 5.0) -> Callable[[PacketInfo], None]:
+    def syn_flood_detector(threshold: int = 50, window: float = 5.0) -> Callable[[my_PacketInfo], None]:
         """
         检测 SYN Flood：大量 SYN 包无后续连接。
         """
         syn_count: Dict[str, deque[float]] = defaultdict(deque)
         
-        def handler(info: PacketInfo) -> None:
+        def handler(info: my_PacketInfo) -> None:
             if info.protocol != "TCP":
                 return
             
@@ -373,14 +428,14 @@ class CaptureHandlers:
         return handler
     # ========== 流量统计类 ==========
     @staticmethod
-    def bandwidth_meter(interval: int = 5) -> Callable[[PacketInfo], None]:
+    def bandwidth_meter(interval: int = 5) -> Callable[[my_PacketInfo], None]:
         """
         实时显示带宽（KB/s）。
         """
         traffic_log: deque[tuple[float, int]] = deque()
         last_print = [0.0]
         
-        def handler(info: PacketInfo) -> None:
+        def handler(info: my_PacketInfo) -> None:
             now = time.time()
             traffic_log.append((now, info.length))
             

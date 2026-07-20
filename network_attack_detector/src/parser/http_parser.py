@@ -1,8 +1,52 @@
 import re
 import urllib.parse
 from typing import Optional, Dict
+from dataclasses import dataclass, field
 
-from src.core.models import HttpParseResult
+@dataclass
+class HttpParseResult:
+    """HTTP 解析结果"""
+    is_request: bool = False       # True=请求, False=响应
+    method: Optional[str] = None   # GET/POST/PUT/DELETE/...
+    host: Optional[str] = None
+    url: Optional[str] = None      # 完整 URL
+    path: Optional[str] = None   # 仅路径部分
+    query: Optional[str] = None    # 查询字符串
+    version: Optional[str] = None  # HTTP/1.1
+    # 响应特有
+    status_code: Optional[int] = None
+    status_text: Optional[str] = None
+    
+    headers: Dict[str, str] = field(default_factory=dict)
+    body: Optional[bytes] = None
+    
+    def is_get(self) -> bool:
+        return self.method == "GET"
+    
+    def is_post(self) -> bool:
+        return self.method == "POST"
+    
+    def query_dict(self) -> Dict[str, list[str]]:
+        """解析查询字符串为字典"""
+        if not self.query:
+            return {}
+        return urllib.parse.parse_qs(self.query)
+    
+    def get_header(self, name: str, default: str = "") -> str:
+        """大小写不敏感获取 header"""
+        name_lower = name.lower()
+        for k, v in self.headers.items():
+            if k.lower() == name_lower:
+                return v
+        return default
+    
+    def content_type(self) -> Optional[str]:
+        return self.get_header("Content-Type") or None
+    
+    def __str__(self) -> str:
+        if self.is_request:
+            return f"HTTP {self.method} {self.path or self.url}"
+        return f"HTTP {self.status_code} {self.status_text}"
 
 class HttpParser:
     """
