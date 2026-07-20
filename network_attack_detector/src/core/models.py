@@ -50,8 +50,6 @@ class CaptureState(Enum):
     ERROR = auto()      # 出错
 @dataclass
 class HttpInfo:
-    """HTTP 解析后的公共结果模型。"""
-
     method: str | None = None
     host: str | None = None
     url: str | None = None
@@ -60,78 +58,7 @@ class HttpInfo:
     user_agent: str | None = None
     status_code: int | None = None
     headers: dict[str, str] = field(default_factory=dict)
-    body: str | bytes | None = ""
-    is_request: bool = True
-    version: str | None = None
-    status_text: str | None = None
-
-    def __post_init__(self) -> None:
-        if self.headers is None:
-            self.headers = {}
-
-        if self.body is None:
-            self.body = ""
-        elif isinstance(self.body, bytes):
-            self.body = self.body.decode("utf-8", errors="replace")
-
-        if self.user_agent is None:
-            self.user_agent = self.get_header("User-Agent") or None
-
-    def is_get(self) -> bool:
-        return self.method == "GET"
-
-    def is_post(self) -> bool:
-        return self.method == "POST"
-
-    def query_dict(self) -> dict[str, list[str]]:
-        """解析查询字符串为字典"""
-        if not self.query:
-            return {}
-        return urllib.parse.parse_qs(self.query)
-
-    def get_header(self, name: str, default: str = "") -> str:
-        """大小写不敏感获取 header"""
-        name_lower = name.lower()
-        for k, v in self.headers.items():
-            if k.lower() == name_lower:
-                return v
-        return default
-
-    def content_type(self) -> str | None:
-        return self.get_header("Content-Type") or None
-
-    def __str__(self) -> str:
-        if self.is_request:
-            return f"HTTP {self.method} {self.path or self.url}"
-        return f"HTTP {self.status_code} {self.status_text}"
-
-
-# 兼容成员 B 已经使用的命名；公共数据流里统一使用 HttpInfo。
-HttpParseResult = HttpInfo
-
-
-def to_http_info(result: Any | None) -> HttpInfo | None:
-    """把成员 B 的 HTTP 解析结果对象转换为统一的 HttpInfo。"""
-    if result is None:
-        return None
-    if isinstance(result, HttpInfo):
-        return result
-
-    return HttpInfo(
-        method=getattr(result, "method", None),
-        host=getattr(result, "host", None),
-        url=getattr(result, "url", None),
-        path=getattr(result, "path", None),
-        query=getattr(result, "query", None),
-        user_agent=getattr(result, "user_agent", None),
-        status_code=getattr(result, "status_code", None),
-        headers=dict(getattr(result, "headers", {}) or {}),
-        body=getattr(result, "body", ""),
-        is_request=getattr(result, "is_request", True),
-        version=getattr(result, "version", None),
-        status_text=getattr(result, "status_text", None),
-    )
-
+    body: str = ""
 
 @dataclass
 class PacketInfo:
@@ -149,26 +76,6 @@ class PacketInfo:
     raw_summary: str = ""
     interface: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    index: int|None = None
-    raw_packet: Any|None = None
-    src_mac: Optional[str] = None
-    dst_mac: Optional[str] = None
-    eth_type: Optional[str] = None
-    ip_version: Optional[int] = None
-    ip_ttl: Optional[int] = None
-    ip_proto: Optional[str] = None
-    udp_length: Optional[int] = None
-    layers: List[str] = field(default_factory=list)
-    def summary(self) -> str:
-        parts = [
-            f"[{self.interface}]",
-            f"{self.protocol.value if self.protocol else 'UNKNOWN'}",
-            f"{self.src_ip or self.src_mac}:{self.src_port or '-'}",
-            "->",
-            f"{self.dst_ip or self.dst_mac}:{self.dst_port or '-'}",
-            f"({self.length} bytes)"
-        ]
-        return " ".join(parts)
 
     
 @dataclass
@@ -278,8 +185,6 @@ class InterfaceInfo:
     def __str__(self) -> str:
         status = "UP" if self.is_up else "DOWN"
         return f"{self.name} ({status}) | IP: {self.ip_addresses} | MAC: {self.mac_address}"
-
-
 
 
 
