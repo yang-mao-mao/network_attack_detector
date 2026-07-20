@@ -1,0 +1,12 @@
+rule_id,name,category,level,protocol,match_type,pattern,target_fields,nocase,enabled,description,suggestion
+SIG-1001,SQL union select,SQL Injection,High,HTTP,content,union select,http.url;http.query;http.body;payload_text,true,true,Detect SQL injection using union select,Use prepared statements and strict input validation
+SIG-1002,SQL tautology,SQL Injection,High,HTTP,regex,or\s+1\s*=\s*1,http.url;http.query;http.body;payload_text,true,true,Detect tautology SQL injection,Use parameterized queries
+SIG-1003,XSS script tag,XSS,High,HTTP,content,<script,http.url;http.query;http.body;payload_text,true,true,Detect script tag XSS,Escape output and sanitize input
+SIG-1004,XSS event handler,XSS,High,HTTP,regex,onerror\s*=|onload\s*=,http.url;http.query;http.body;payload_text,true,true,Detect event-handler based XSS,Apply output encoding
+SIG-1005,Command passwd,Command Injection,High,HTTP,content,/etc/passwd,http.url;http.query;http.body;payload_text,true,true,Detect passwd file access attempt,Review command execution entry points
+SIG-1006,Windows cmd,Command Injection,High,HTTP,content,cmd.exe,http.url;http.query;http.body;payload_text,true,true,Detect Windows command execution marker,Avoid command string concatenation
+SIG-1007,PowerShell command,Command Injection,High,HTTP,content,powershell,http.url;http.query;http.body;payload_text,true,true,Detect PowerShell execution marker,Restrict command execution capability
+SIG-1008,WebShell eval,WebShell,High,HTTP,content,eval(,http.body;payload_text,true,true,Detect suspicious eval call,Check uploaded scripts and web root permissions
+SIG-1009,WebShell base64 decode,WebShell,High,HTTP,content,base64_decode,http.body;payload_text,true,true,Detect suspicious base64 decode call,Audit webshell indicators
+SIG-1010,Sensitive env file,Suspicious Traffic,Medium,HTTP,content,.env,http.url;http.query;payload_text,true,true,Detect sensitive environment file probing,Block sensitive files from public web roots
+

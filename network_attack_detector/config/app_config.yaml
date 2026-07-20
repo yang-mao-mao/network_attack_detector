@@ -1,0 +1,23 @@
+app:
+  name: "Network Attack Detector"
+  version: "0.1.0"
+
+paths:
+  signature_rules: "data/rules/signature_rules.csv"
+  behavior_rules: "data/rules/behavior_rules.json"
+  database: "data/ids.db"
+  exports: "data/exports"
+
+capture:
+  default_bpf_filter: "ip and tcp"
+  snaplen: 65535
+  timeout_ms: 500
+  promiscuous: true
+
+detection:
+  max_payload_preview: 512
+  default_port_scan_window_seconds: 60
+  default_port_scan_threshold: 20
+  default_bruteforce_window_seconds: 60
+  default_bruteforce_threshold: 10
+
