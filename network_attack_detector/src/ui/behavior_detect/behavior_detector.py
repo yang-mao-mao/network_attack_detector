@@ -261,6 +261,29 @@ CSS_APP_GLOBAL = (
     "}}"
 )
 
+# ── Disabled-state button variants (coloured background, muted text) ───────
+
+CSS_BTN_START_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: {CLR_START_BG}; color: {CLR_TEXT_MUTED};"
+    "border: none; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
+CSS_BTN_STOP_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: {CLR_STOP_BG}; color: {CLR_TEXT_MUTED};"
+    "border: none; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
+CSS_BTN_DELETE_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: #000000; color: {CLR_TEXT_MUTED};"
+    "border: 1px solid {CLR_BORDER}; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
 
 # =============================================================================
 # RulePanel — left-side behavior-rule management
@@ -295,6 +318,8 @@ class RulePanel(QWidget):
         self._delete_mode: bool = False
         self._delete_button: QPushButton | None = None
         self._rebuilding: bool = False
+        self._has_rules: bool = False
+        self._detection_active: bool = False
 
         self._build_ui()
 
@@ -327,6 +352,7 @@ class RulePanel(QWidget):
         layout.addWidget(self._scroll, stretch=1)
 
         layout.addWidget(self._build_button_bar())
+        self._update_button_states()
 
     def _build_button_bar(self) -> QWidget:
         bar = QWidget()
@@ -375,7 +401,6 @@ class RulePanel(QWidget):
             CLR_TEXT_INVERSE=CLR_TEXT_INVERSE, CLR_STOP_HOVER=CLR_STOP_HOVER,
             CLR_STOP_PRESSED=CLR_STOP_PRESSED))
         self._btn_stop.clicked.connect(self._on_stop)
-        self._btn_stop.setEnabled(False)
         row2.addWidget(self._btn_stop)
         row2.addStretch()
         outer.addLayout(row2)
@@ -414,6 +439,8 @@ class RulePanel(QWidget):
                         w.deleteLater()
         finally:
             self._rebuilding = False
+        self._has_rules = False
+        self._update_button_states()
 
     def rebuild_from_json_text(self, text: str) -> None:
         """Parse *text* as a JSON array of behavior rules and rebuild the UI."""
@@ -450,6 +477,8 @@ class RulePanel(QWidget):
                 self._add_placeholder_row("(no valid rule objects found)")
         finally:
             self._rebuilding = False
+        self._has_rules = len(self._rules) > 0
+        self._update_button_states()
 
     def _add_placeholder_row(self, text: str) -> None:
         lbl = QLabel(text)
@@ -573,10 +602,63 @@ class RulePanel(QWidget):
     # ── Button state management ─────────────────────────────────────────────
 
     def set_detection_active(self, active: bool) -> None:
-        self._btn_add.setEnabled(not active)
-        self._delete_button.setEnabled(not active)
-        self._btn_start.setEnabled(not active)
-        self._btn_stop.setEnabled(active)
+        """Update detection state and refresh all button styles."""
+        self._detection_active = active
+        self._update_button_states()
+
+    def _update_button_states(self) -> None:
+        """Apply the correct enabled-state and stylesheet to every button
+        based on the current combination of *_has_rules* and
+        *_detection_active*.
+        """
+        pad = "padding: 8px 20px;"
+        if self._detection_active:
+            # Detection is running — only Stop is clickable
+            self._btn_start.setEnabled(False)
+            self._btn_start.setStyleSheet(CSS_BTN_START_DISABLED.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_stop.setEnabled(True)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_INVERSE=CLR_TEXT_INVERSE,
+                CLR_STOP_HOVER=CLR_STOP_HOVER,
+                CLR_STOP_PRESSED=CLR_STOP_PRESSED))
+            self._btn_add.setEnabled(False)
+            self._delete_button.setEnabled(False)
+            self._delete_button.setStyleSheet(CSS_BTN_DELETE_DISABLED.format(
+                padding="padding: 6px 14px;", CLR_TEXT_MUTED=CLR_TEXT_MUTED,
+                CLR_BORDER=CLR_BORDER))
+        elif self._has_rules:
+            # Rules are loaded, detection is idle — Start is clickable
+            self._btn_start.setEnabled(True)
+            self._btn_start.setStyleSheet(CSS_BTN_START.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_INVERSE=CLR_TEXT_INVERSE,
+                CLR_START_HOVER=CLR_START_HOVER,
+                CLR_START_PRESSED=CLR_START_PRESSED))
+            self._btn_stop.setEnabled(False)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP_DISABLED.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_add.setEnabled(True)
+            self._delete_button.setEnabled(True)
+            self._update_delete_button_style(False)
+        else:
+            # No rules loaded — everything is disabled (grey text)
+            self._btn_start.setEnabled(False)
+            self._btn_start.setStyleSheet(CSS_BTN_START_DISABLED.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_stop.setEnabled(False)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP_DISABLED.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_add.setEnabled(True)
+            self._delete_button.setEnabled(False)
+            self._delete_button.setStyleSheet(CSS_BTN_DELETE_DISABLED.format(
+                padding="padding: 6px 14px;", CLR_TEXT_MUTED=CLR_TEXT_MUTED,
+                CLR_BORDER=CLR_BORDER))
 
     # ── Public helpers ──────────────────────────────────────────────────────
 
@@ -830,7 +912,7 @@ class BehaviorDetectWindow(QMainWindow):
 
     _RULE_FIELDS = RulePanel.FIELD_NAMES
 
-    def __init__(self) -> None:
+    def __init__(self, auto_open: bool = True) -> None:
         super().__init__()
         self.setWindowTitle("Behavior Detection — Network Attack Detector")
         self.resize(1200, 750)
@@ -842,6 +924,9 @@ class BehaviorDetectWindow(QMainWindow):
         self._simulation_timer: QTimer | None = None
         self._sim_counter: int = 0
 
+        # Reference to StatisticWindow — set by MainWindow after construction
+        self._stat_window: Any | None = None
+
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(600)
@@ -849,7 +934,15 @@ class BehaviorDetectWindow(QMainWindow):
 
         self._build_ui()
         self._connect_signals()
-        QTimer.singleShot(100, self._prompt_open_rules_file)
+        if auto_open:
+            QTimer.singleShot(100, self._prompt_open_rules_file)
+
+    # ── StatisticWindow integration ─────────────────────────────────────────
+
+    def set_statistic_window(self, stat_window: Any) -> None:
+        """Receive a reference to the :class:`StatisticWindow` so that detection
+        results (alerts) can be forwarded to the statistics dashboard."""
+        self._stat_window = stat_window
 
     # ── UI construction ─────────────────────────────────────────────────────
 
@@ -1153,6 +1246,10 @@ class BehaviorDetectWindow(QMainWindow):
                 ] if self._sim_counter % 5 == 0 else []),
                 engine_name="behavior_engine",
                 cost_ms=round(0.3 + self._sim_counter * 0.05, 2))
+            # Forward alerts to the statistics dashboard
+            if self._stat_window is not None:
+                for alert in result.alerts:
+                    self._stat_window.add_alert(alert)
         except ImportError:
             result = _MockResult(self._sim_counter)
         self._result_panel.add_result(result)

@@ -47,3 +47,4 @@ Thumbs.db
 data/exports/*.csv
 data/exports/*.html
 task*.md
+overall_report_*.html

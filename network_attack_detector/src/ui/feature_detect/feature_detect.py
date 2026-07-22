@@ -328,6 +328,29 @@ CSS_APP_GLOBAL = (
     "}}"
 )
 
+# ── Disabled-state button variants (coloured background, muted text) ───────
+
+CSS_BTN_START_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: {CLR_START_BG}; color: {CLR_TEXT_MUTED};"
+    "border: none; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
+CSS_BTN_STOP_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: {CLR_STOP_BG}; color: {CLR_TEXT_MUTED};"
+    "border: none; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
+CSS_BTN_DELETE_DISABLED = (
+    "QPushButton {{{padding}"
+    "background-color: #000000; color: {CLR_TEXT_MUTED};"
+    "border: 1px solid {CLR_BORDER}; border-radius: 4px; font-weight: bold;"
+    "}}"
+)
+
 
 # =============================================================================
 # RulePanel — left-side rule management
@@ -408,6 +431,8 @@ class RulePanel(QWidget):
         self._delete_mode: bool = False
         self._delete_button: QPushButton | None = None
         self._rebuilding: bool = False                   # guard during rebuild
+        self._has_rules: bool = False
+        self._detection_active: bool = False
 
         self._build_ui()
         # Rules are loaded externally via rebuild_from_csv_text().
@@ -448,6 +473,7 @@ class RulePanel(QWidget):
 
         # -- bottom button bar ------------------------------------------------
         layout.addWidget(self._build_button_bar())
+        self._update_button_states()
 
     def _build_button_bar(self) -> QWidget:
         """Construct the bottom control bar: [+], [DELETE], [▶ Start], [■ Stop]."""
@@ -516,7 +542,6 @@ class RulePanel(QWidget):
             CLR_STOP_PRESSED=CLR_STOP_PRESSED,
         ))
         self._btn_stop.clicked.connect(self._on_stop)
-        self._btn_stop.setEnabled(False)  # no detection running initially
         row2.addWidget(self._btn_stop)
 
         row2.addStretch()
@@ -566,6 +591,8 @@ class RulePanel(QWidget):
                         w.deleteLater()
         finally:
             self._rebuilding = False
+        self._has_rules = False
+        self._update_button_states()
 
     def rebuild_from_csv_text(self, text: str) -> None:
         """Parse *text* as CSV and rebuild the entire rule-list UI.
@@ -604,6 +631,8 @@ class RulePanel(QWidget):
 
             if row_count == 0:
                 self._add_placeholder_row("(no valid rule rows found)")
+            self._has_rules = len(self._rules) > 0
+            self._update_button_states()
         finally:
             self._rebuilding = False
 
@@ -786,18 +815,60 @@ class RulePanel(QWidget):
     # ── detection-state button management ──────────────────────────────────
 
     def set_detection_active(self, active: bool) -> None:
-        """Enable or disable buttons based on whether detection is running.
+        """Update detection state and refresh all button styles."""
+        self._detection_active = active
+        self._update_button_states()
 
-        When detection is **active** the user must not be able to modify
-        rules or start another detection; only Stop is available.
-
-        When detection is **idle** the opposite applies — rule management
-        and Start are available, but Stop is disabled (nothing to stop).
+    def _update_button_states(self) -> None:
+        """Apply the correct enabled-state and stylesheet to every button
+        based on the current combination of *_has_rules* and
+        *_detection_active*.
         """
-        self._btn_add.setEnabled(not active)
-        self._delete_button.setEnabled(not active)
-        self._btn_start.setEnabled(not active)
-        self._btn_stop.setEnabled(active)
+        pad = "padding: 8px 20px;"
+        if self._detection_active:
+            self._btn_start.setEnabled(False)
+            self._btn_start.setStyleSheet(CSS_BTN_START_DISABLED.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_stop.setEnabled(True)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_INVERSE=CLR_TEXT_INVERSE,
+                CLR_STOP_HOVER=CLR_STOP_HOVER,
+                CLR_STOP_PRESSED=CLR_STOP_PRESSED))
+            self._btn_add.setEnabled(False)
+            self._delete_button.setEnabled(False)
+            self._delete_button.setStyleSheet(CSS_BTN_DELETE_DISABLED.format(
+                padding="padding: 6px 14px;", CLR_TEXT_MUTED=CLR_TEXT_MUTED,
+                CLR_BORDER=CLR_BORDER))
+        elif self._has_rules:
+            self._btn_start.setEnabled(True)
+            self._btn_start.setStyleSheet(CSS_BTN_START.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_INVERSE=CLR_TEXT_INVERSE,
+                CLR_START_HOVER=CLR_START_HOVER,
+                CLR_START_PRESSED=CLR_START_PRESSED))
+            self._btn_stop.setEnabled(False)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP_DISABLED.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_add.setEnabled(True)
+            self._delete_button.setEnabled(True)
+            self._update_delete_button_style(False)
+        else:
+            self._btn_start.setEnabled(False)
+            self._btn_start.setStyleSheet(CSS_BTN_START_DISABLED.format(
+                padding=pad, CLR_START_BG=CLR_START_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_stop.setEnabled(False)
+            self._btn_stop.setStyleSheet(CSS_BTN_STOP_DISABLED.format(
+                padding=pad, CLR_STOP_BG=CLR_STOP_BG,
+                CLR_TEXT_MUTED=CLR_TEXT_MUTED))
+            self._btn_add.setEnabled(True)
+            self._delete_button.setEnabled(False)
+            self._delete_button.setStyleSheet(CSS_BTN_DELETE_DISABLED.format(
+                padding="padding: 6px 14px;", CLR_TEXT_MUTED=CLR_TEXT_MUTED,
+                CLR_BORDER=CLR_BORDER))
 
     # ── public helpers ──────────────────────────────────────────────────────
 
@@ -1124,7 +1195,7 @@ class FeatureDetectWindow(QMainWindow):
         "enabled", "description", "suggestion",
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, auto_open: bool = True) -> None:
         super().__init__()
         self.setWindowTitle("Feature Detection — Network Attack Detector")
         self.resize(1200, 750)
@@ -1133,6 +1204,9 @@ class FeatureDetectWindow(QMainWindow):
         self._csv_path: Path | None = None
         self._modified: bool = False
         self._sync_locked: bool = False          # guard against feedback loops
+
+        # Reference to StatisticWindow — set by MainWindow after construction
+        self._stat_window: Any | None = None
 
         # Detection simulation state
         self._detection_active: bool = False
@@ -1148,8 +1222,15 @@ class FeatureDetectWindow(QMainWindow):
         self._build_ui()
         self._connect_signals()
 
-        # Show file dialog on startup (task2 requirement)
-        QTimer.singleShot(100, self._prompt_open_rules_file)
+        if auto_open:
+            QTimer.singleShot(100, self._prompt_open_rules_file)
+
+    # ── StatisticWindow integration ─────────────────────────────────────────
+
+    def set_statistic_window(self, stat_window: Any) -> None:
+        """Receive a reference to the :class:`StatisticWindow` so that detection
+        results (alerts) can be forwarded to the statistics dashboard."""
+        self._stat_window = stat_window
 
     # ── UI construction ─────────────────────────────────────────────────────
 
@@ -1683,6 +1764,10 @@ class FeatureDetectWindow(QMainWindow):
                 engine_name="signature_engine",
                 cost_ms=round(0.5 + self._sim_counter * 0.07, 2),
             )
+            # Forward alerts to the statistics dashboard
+            if self._stat_window is not None:
+                for alert in result.alerts:
+                    self._stat_window.add_alert(alert)
         except ImportError:
             result = _MockResult(self._sim_counter)
 

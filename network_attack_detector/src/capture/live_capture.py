@@ -1,10 +1,13 @@
 import threading
 import queue
+import time
+from pathlib import Path
+from collections import defaultdict, deque
 from typing import Callable, Optional, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from scapy.all import AsyncSniffer, Packet, get_if_list
+from scapy.all import AsyncSniffer, Packet, get_if_list, wrpcap
 from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 
@@ -111,18 +114,14 @@ class LiveCapture:
             iface=self.interface,
             filter=self.bpf_filter or None,
             prn=self._on_packet_raw,
-            count=self.packet_count or None,
+            count=self.packet_count,
             promisc=self.promiscuous,
             store=False          # 不存储，实时处理
         )
         self._sniffer.start()
         
         # 启动消费线程（处理队列中的包）
-        self._worker_thread = threading.Thread(
-            target=self._process_queue,
-            daemon=True,
-            name="LiveCapture-Worker"
-        )
+        self._worker_thread = threading.Thread(target=self._process_queue, daemon=True, name="LiveCapture-Worker")
         self._worker_thread.start()
         return True
     
@@ -136,8 +135,10 @@ class LiveCapture:
         self._stop_event.set()
         
         if self._sniffer:
-            self._sniffer.stop()
-        
+            try:
+                self._sniffer.stop()
+            except Exception:
+                pass
         if self._worker_thread and self._worker_thread.is_alive():
             self._worker_thread.join(timeout=2.0)
     
@@ -290,6 +291,150 @@ class LiveCapture:
             return None
 
 
+class CaptureHandlers:
+    """
+    常用抓包处理函数集合。
+    """ 
+    # ========== 日志输出 ==========
+    @staticmethod
+    def console_logger(show_payload: bool = False, max_payload: int = 200) -> Callable[[PacketInfo], None]:
+        """
+        打印到控制台。
+        Args:
+            show_payload: 是否显示原始 payload 内容
+            max_payload: payload 最大显示字节数
+        """
+        def handler(info: PacketInfo) -> None:
+            ts = time.strftime("%H:%M:%S", time.localtime(info.timestamp))
+            line = f"[{ts}] {info.summary()}"
+            print(line)
+            
+            if show_payload and info.raw_packet.haslayer("Raw"):
+                payload = info.raw_packet["Raw"].load
+                preview = payload[:max_payload]
+                try:
+                    text = preview.decode("utf-8", errors="replace")
+                    print(f"  Payload: {text}")
+                except Exception:
+                    print(f"  Payload(hex): {preview.hex()}")
+        
+        return handler
+    # ========== 数据存储 ==========
+    @staticmethod
+    def pcap_writer( path: str, batch_size: int = 20 ) -> Callable[[PacketInfo], None]:
+        """
+        保存为 pcap 文件（Wireshark 可读）。
+        批量写入减少 IO。
+        """
+        buffer: List[Packet] = []
+        filepath = Path(path)
+        
+        def handler(info: PacketInfo) -> None:
+            buffer.append(info.raw_packet)
+            
+            if len(buffer) >= batch_size:
+                wrpcap(str(filepath), buffer, append=filepath.exists())
+                buffer.clear()
+        
+        def flush() -> None:
+            if buffer:
+                wrpcap(str(filepath), buffer, append=filepath.exists())
+                buffer.clear()
+        
+        handler.flush = flush  # type: ignore
+        handler.close = flush  # type: ignore
+        return handler
+    # ========== 安全检测类 ==========
+    @staticmethod
+    def port_scan_detector(threshold: int = 10, window: float = 60.0) -> Callable[[PacketInfo], None]:
+        """
+        检测端口扫描：单个 IP 在短时间内访问大量不同端口。
+        """
+        history: Dict[str, deque[tuple[float, int]]] = defaultdict(deque)
+        
+        def handler(info: PacketInfo) -> None:
+            if not info.src_ip or not info.dst_port:
+                return
+            
+            now = time.time()
+            ip = info.src_ip
+            port = info.dst_port
+            
+            # 清理过期记录
+            dq = history[ip]
+            while dq and now - dq[0][0] > window:
+                dq.popleft()
+            
+            # 记录新端口
+            # 只记录 SYN 包（没有 ACK 的）
+            if info.raw_packet.haslayer(TCP):
+                flags = info.raw_packet[TCP].flags
+                if "S" in str(flags) and "A" not in str(flags):
+                    # 检查是否新端口
+                    existing_ports = {p for _, p in dq}
+                    if port not in existing_ports:
+                        dq.append((now, port))
+                        
+                        if len({p for _, p in dq}) >= threshold:
+                            print(f"\n[ALERT] 疑似端口扫描: {ip} 已访问 {len({p for _, p in dq})} 个端口")
+        
+        return handler
+    
+    @staticmethod
+    def syn_flood_detector(threshold: int = 50, window: float = 5.0) -> Callable[[PacketInfo], None]:
+        """
+        检测 SYN Flood：大量 SYN 包无后续连接。
+        """
+        syn_count: Dict[str, deque[float]] = defaultdict(deque)
+        
+        def handler(info: PacketInfo) -> None:
+            if info.protocol != "TCP":
+                return
+            
+            flags = info.raw_packet[TCP].flags
+            if "S" not in str(flags) or "A" in str(flags):
+                return
+            
+            now = time.time()
+            ip = info.src_ip
+            
+            dq = syn_count[ip]
+            while dq and now - dq[0] > window:
+                dq.popleft()
+            
+            dq.append(now)
+            
+            if len(dq) >= threshold:
+                print(f"\n[ALERT] 疑似 SYN Flood: {ip} 在 {window}s 内发送 {len(dq)} 个 SYN")
+                dq.clear()  # 防止重复报警
+        
+        return handler
+    # ========== 流量统计类 ==========
+    @staticmethod
+    def bandwidth_meter(interval: int = 5) -> Callable[[PacketInfo], None]:
+        """
+        实时显示带宽（KB/s）。
+        """
+        traffic_log: deque[tuple[float, int]] = deque()
+        last_print = [0.0]
+        
+        def handler(info: PacketInfo) -> None:
+            now = time.time()
+            traffic_log.append((now, info.length))
+            
+            # 清理过期
+            while traffic_log and now - traffic_log[0][0] > interval:
+                traffic_log.popleft()
+            
+            # 定期打印
+            if now - last_print[0] >= interval:
+                total = sum(size for _, size in traffic_log)
+                speed = total / interval / 1024
+                print(f"\r[带宽] {speed:.2f} KB/s ({len(traffic_log)} 包/{interval}s)", end="", flush=True)
+                last_print[0] = now
+        
+        return handler
+
 # ========== 使用示例 ==========
 # sudo $(which python3) -m src.capture.live_capture
 if __name__ == "__main__":
@@ -305,28 +450,13 @@ if __name__ == "__main__":
         print(f"  {name}")
     
     # 2. 创建抓包实例
-    # 过滤 TCP 80 端口（HTTP）
     capture = LiveCapture(
-        interface=None,           # 或 None 让 scapy 自动选择
-        bpf_filter="",   # BPF 语法
+        interface="wlp0s20f3",      # 或 None 让 scapy 自动选择
+        bpf_filter="",              # BPF 语法
         packet_count=0            # 抓 100 个包后自动停止，0=无限
     )
     
-    # 3. 注册处理函数
-    def print_handler(info: PacketInfo) -> None:
-        print(info.summary())
-    
-    def save_handler(info: PacketInfo) -> None:
-        # 保存到文件或数据库
-        if info.protocol == "TCP":
-            # 可以访问原始包做深度解析
-            raw = info.raw_packet
-            flags = raw[TCP].flags if raw.haslayer(TCP) else None
-            # print(f"  Flags: {flags}")
-            pass
-    
-    capture.add_handler(print_handler)
-    #capture.add_handler(save_handler)
+    capture.add_handler(CaptureHandlers.console_logger())
     
     # 4. 开始抓包
     print("\n开始抓包...")

@@ -63,14 +63,25 @@ BUTTON_BG_DEFAULT = QColor(30, 30, 30)        # same as sidebar
 BUTTON_BG_ACTIVE = QColor(0, 100, 200)         # blue
 BUTTON_BG_HOVER = QColor(60, 60, 60)           # lighter on hover
 
+# ── figures directory ────────────────────────────────────────────────────────
+_FIGURES_DIR = Path(__file__).resolve().parent / "figures"
+
 # ── button descriptor ────────────────────────────────────────────────────────
+# image_key maps to {image_key}.png (active) and {image_key}_grey.png (inactive)
+# inside the figures/ directory.
 BUTTONS = [
-    {"label": "B",  "tooltip": "behavior_detect", "cls": BehaviorDetectWindow},
-    {"label": "F",  "tooltip": "feature_detect",  "cls": FeatureDetectWindow},
-    {"label": "P",  "tooltip": "packet_capture",  "cls": PacketCaptureWindow},
-    {"label": "Sh", "tooltip": "shell",            "cls": ShellWindow},
-    {"label": "St", "tooltip": "statistic",        "cls": StatisticWindow},
-    {"label": "T",  "tooltip": "text_editor",      "cls": NanoEditor},
+    {"label": "B",  "tooltip": "behavior_detect", "cls": BehaviorDetectWindow,
+     "image_key": "Behavior_detect"},
+    {"label": "F",  "tooltip": "feature_detect",  "cls": FeatureDetectWindow,
+     "image_key": "feature_detect"},
+    {"label": "P",  "tooltip": "packet_capture",  "cls": PacketCaptureWindow,
+     "image_key": "packet_capture"},
+    {"label": "Sh", "tooltip": "shell",            "cls": ShellWindow,
+     "image_key": "shell"},
+    {"label": "St", "tooltip": "statistic",        "cls": StatisticWindow,
+     "image_key": "statistic"},
+    {"label": "T",  "tooltip": "text_editor",      "cls": NanoEditor,
+     "image_key": "text_editor"},
 ]
 
 
@@ -92,7 +103,8 @@ class SideBarButton(QPushButton):
         self._tooltip_text = tooltip
         self._active = False
         self._hovered = False
-        self._image_path: str | None = None  # reserved for future fig/ images
+        self._image_active: str | None = None    # shown when button is selected
+        self._image_inactive: str | None = None  # shown when button is unselected
 
         self.setFixedSize(BUTTON_SIZE)
         self.setToolTip(self._tooltip_text)
@@ -109,9 +121,15 @@ class SideBarButton(QPushButton):
             self._active = active
             self.update()
 
-    def set_image(self, path: str | None) -> None:
-        """Set an external image path for the button face (future use)."""
-        self._image_path = path
+    def set_images(self, active_path: str, inactive_path: str) -> None:
+        """Set the image paths for active (selected) and inactive (unselected) states.
+
+        Args:
+            active_path: path to the PNG shown when the button is selected.
+            inactive_path: path to the PNG shown when the button is unselected.
+        """
+        self._image_active = active_path
+        self._image_inactive = inactive_path
         self.update()
 
     # ── event overrides ──────────────────────────────────────────────────
@@ -141,9 +159,10 @@ class SideBarButton(QPushButton):
             bg = BUTTON_BG_DEFAULT
         painter.fillRect(self.rect(), bg)
 
-        # Foreground — image if available, otherwise the label text
-        if self._image_path and Path(self._image_path).exists():
-            icon = QIcon(self._image_path)
+        # Foreground — pick the right image (active vs inactive), fall back to text
+        image_path = self._image_active if self._active else self._image_inactive
+        if image_path and Path(image_path).exists():
+            icon = QIcon(image_path)
             pixmap = icon.pixmap(self.size() - QSize(12, 12))
             x = (self.width() - pixmap.width()) // 2
             y = (self.height() - pixmap.height()) // 2
@@ -234,9 +253,39 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(self._make_click_handler(idx))
             self._btn_to_index[btn] = idx
 
-            # Instantiate the page window
-            page: QWidget = spec["cls"]()
+            # Wire up figure images (active = non-_grey, inactive = _grey)
+            image_key: str = spec.get("image_key", spec["tooltip"])
+            active_img = str(_FIGURES_DIR / f"{image_key}.png")
+            inactive_img = str(_FIGURES_DIR / f"{image_key}_grey.png")
+            btn.set_images(active_img, inactive_img)
+
+            # Instantiate the page window.
+            # Indices 0 (behavior) and 1 (feature) are passed auto_open=False
+            # so they don't pop up a file dialog when loaded from the sidebar.
+            if idx in (0, 1):
+                page: QWidget = spec["cls"](auto_open=False)
+            else:
+                page: QWidget = spec["cls"]()
             self._stack.addWidget(page)
+
+        # ── wire up StatisticWindow → sub-windows ─────────────────────────
+        # Pass the shared StatisticWindow instance so that behavior_detect,
+        # feature_detect, and packet_capture can feed real data into it
+        # instead of the window generating its own mock data.
+        stat_window = self._stack.widget(4)  # StatisticWindow
+        stat_window.set_use_mock_data(False)  # disable synthetic data generation
+
+        behavior_win = self._stack.widget(0)  # BehaviorDetectWindow
+        if hasattr(behavior_win, "set_statistic_window"):
+            behavior_win.set_statistic_window(stat_window)
+
+        feature_win = self._stack.widget(1)  # FeatureDetectWindow
+        if hasattr(feature_win, "set_statistic_window"):
+            feature_win.set_statistic_window(stat_window)
+
+        packet_win = self._stack.widget(2)  # PacketCaptureWindow
+        if hasattr(packet_win, "set_statistic_window"):
+            packet_win.set_statistic_window(stat_window)
 
         # ── default selection ────────────────────────────────────────────
         self._current_idx: int = 0

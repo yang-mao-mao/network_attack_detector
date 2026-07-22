@@ -175,6 +175,7 @@ CSS_DETAIL_LABEL = (
 )
 
 
+
 # =============================================================================
 # PacketCaptureWindow — the composite main window
 # =============================================================================
@@ -233,6 +234,9 @@ class PacketCaptureWindow(QMainWindow):
         # Packet storage
         self._packets: list[Any] = []  # PacketInfo instances
 
+        # Reference to StatisticWindow — set by MainWindow after construction
+        self._stat_window: Any | None = None
+
         # Stats polling timer (matches the polling loop in live_capture.py's main)
         self._stats_timer = QTimer(self)
         self._stats_timer.timeout.connect(self._on_stats_timer)
@@ -245,6 +249,13 @@ class PacketCaptureWindow(QMainWindow):
 
         self._build_ui()
         self._connect_signals()
+
+    # ── StatisticWindow integration ─────────────────────────────────────────
+
+    def set_statistic_window(self, stat_window: Any) -> None:
+        """Receive a reference to the :class:`StatisticWindow` so that captured
+        packets can be forwarded to the statistics dashboard."""
+        self._stat_window = stat_window
 
     # ── UI construction ─────────────────────────────────────────────────────
 
@@ -739,6 +750,9 @@ class PacketCaptureWindow(QMainWindow):
             # Switch from placeholder to table if this is the first packet
             if self._upper_stack.currentIndex() != 0:
                 self._upper_stack.setCurrentIndex(0)
+            # Forward packet to the statistics dashboard
+            if self._stat_window is not None:
+                self._stat_window.add_packet(packet)
         except Exception:
             traceback.print_exc()
             print(

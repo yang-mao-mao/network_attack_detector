@@ -47,6 +47,8 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMainWindow,
+    QMenu,
+    QPushButton,
     QSplitter,
     QStackedWidget,
     QTableWidget,
@@ -600,10 +602,14 @@ class StatisticWindow(QMainWindow):
         self._attacks: list[Alert] = []
         self._packets: list[PacketInfo] = []
 
+        # Mock-data control — when True the timer generates synthetic data;
+        # set to False when external modules feed real data via add_alert/add_packet.
+        self._use_mock_data: bool = True
+
         # Simulation counter
         self._sim_counter: int = 0
 
-        # Data-collection timer
+        # Data-collection timer (always runs — updates clock + refreshes panels)
         self._data_timer = QTimer(self)
         self._data_timer.setInterval(1000)
 
@@ -624,6 +630,44 @@ class StatisticWindow(QMainWindow):
 
         # Left — clock (square)
         self._clock = AttackClockWidget()
+
+        # ---- GEN REPORT button (top-left corner of the clock) ----
+        self._gen_report_btn = QPushButton("GEN REPORT", self._clock)
+        self._gen_report_btn.setStyleSheet(
+            "QPushButton {"
+            "background-color: #007acc; color: #ffffff;"
+            "font-weight: bold; font-size: 12px;"
+            "padding: 6px 14px; border: none; border-radius: 4px;"
+            "}"
+            "QPushButton:hover { background-color: #0098e8; }"
+            "QPushButton:pressed { background-color: #005f9e; }"
+        )
+        self._gen_report_btn.move(8, 8)
+        self._gen_report_btn.setFixedSize(130, 32)
+
+        # -- Dropdown menu --
+        report_menu = QMenu(self._gen_report_btn)
+        report_menu.setStyleSheet(
+            "QMenu {"
+            "background-color: #000000; color: #ffffff;"
+            "border: 1px solid #3e3e3e; padding: 4px 0;"
+            "}"
+            "QMenu::item {"
+            "padding: 8px 24px;"
+            "}"
+            "QMenu::item:selected {"
+            "background-color: #007acc;"
+            "}"
+        )
+
+        csv_action = report_menu.addAction("GEN CSV REPORT")
+        html_action = report_menu.addAction("GEN HTML REPORT")
+
+        csv_action.triggered.connect(self._on_gen_csv_report)
+        html_action.triggered.connect(self._on_gen_html_report)
+
+        self._gen_report_btn.setMenu(report_menu)
+
         self._h_splitter.addWidget(self._clock)
 
         # Right — vertical splitter (attack detail | IP ranking)
@@ -655,18 +699,20 @@ class StatisticWindow(QMainWindow):
     # ── Data collection ─────────────────────────────────────────────────────
 
     def _on_data_tick(self) -> None:
-        """Called every 1 000 ms.  Generates mock data and updates all panels."""
+        """Called every 1 000 ms.  Generates mock data (when enabled) and updates
+        all panels with whatever data is available (mock or externally-fed)."""
         self._sim_counter += 1
         now = time.time()
 
-        # -- Generate attacks every 3-7 seconds --
-        if self._sim_counter % random.randint(3, 7) == 0:
-            alerts = self._generate_mock_attacks(now)
-            self._attacks.extend(alerts)
+        if self._use_mock_data:
+            # -- Generate attacks every 3-7 seconds --
+            if self._sim_counter % random.randint(3, 7) == 0:
+                alerts = self._generate_mock_attacks(now)
+                self._attacks.extend(alerts)
 
-        # -- Generate packets every tick --
-        packets = self._generate_mock_packets(now)
-        self._packets.extend(packets)
+            # -- Generate packets every tick --
+            packets = self._generate_mock_packets(now)
+            self._packets.extend(packets)
 
         # -- Bound data sizes --
         if len(self._attacks) > 200:
@@ -674,7 +720,7 @@ class StatisticWindow(QMainWindow):
         if len(self._packets) > 1000:
             self._packets = self._packets[-1000:]
 
-        # -- Update UI --
+        # -- Update UI (always — reflects both mock and real data) --
         self._clock.set_time(datetime.now())
         self._clock.set_attacks(self._attacks)
         self._ranking_panel.update_ranking(self._packets)
@@ -761,6 +807,16 @@ class StatisticWindow(QMainWindow):
 
     # ── Public integration API ──────────────────────────────────────────────
 
+    def set_use_mock_data(self, use_mock: bool) -> None:
+        """Enable or disable automatic mock-data generation.
+
+        When *use_mock* is ``False`` the timer still ticks (to refresh the
+        clock and re-render panels), but no synthetic alerts or packets are
+        generated.  External modules should feed real data via
+        :meth:`add_alert` and :meth:`add_packet` instead.
+        """
+        self._use_mock_data = use_mock
+
     def add_alert(self, alert: Alert) -> None:
         """Receive an ``Alert`` from an external detection module.
 
@@ -784,6 +840,28 @@ class StatisticWindow(QMainWindow):
         self._packets.append(packet)
         if len(self._packets) > 1000:
             self._packets = self._packets[-1000:]
+
+    # ── Report generation ────────────────────────────────────────────────────
+
+    def _on_gen_csv_report(self) -> None:
+        """Handle **GEN CSV REPORT** menu action.
+
+        Delegates to :func:`report.csv_exporter.generate_attack_report`
+        with the current attack-alert list.
+        """
+        from report.csv_exporter import generate_attack_report
+
+        generate_attack_report(self._attacks, self)
+
+    def _on_gen_html_report(self) -> None:
+        """Handle **GEN HTML REPORT** menu action.
+
+        Delegates to :func:`report.html_reporter.generate_overall_report`
+        with both alert and packet data.
+        """
+        from report.html_reporter import generate_overall_report
+
+        generate_overall_report(self._attacks, self._packets, self)
 
     # ── Close event ─────────────────────────────────────────────────────────
 
