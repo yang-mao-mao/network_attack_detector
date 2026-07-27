@@ -1,0 +1,19 @@
+{
+  "packet_count": 34,
+  "matched_packet_count": 5,
+  "alert_count": 5,
+  "alerts_by_category": {
+    "Brute Force": 1,
+    "Command Injection": 1,
+    "Port Scan": 1,
+    "SQL Injection": 1,
+    "XSS": 1
+  },
+  "alerts_by_rule": {
+    "BEH-2001": 1,
+    "BEH-2002": 1,
+    "SIG-CMDI-003": 1,
+    "SIG-SQLI-001": 1,
+    "SIG-XSS-001": 1
+  }
+}

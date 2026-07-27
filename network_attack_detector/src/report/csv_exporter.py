@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 from pathlib import Path
 
 from src.core.models import Alert
@@ -26,3 +27,26 @@ class CsvExporter:
                     ]
                 )
 
+
+def generate_attack_report(alerts: list[Alert], parent=None) -> None:
+    from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+    if not alerts:
+        QMessageBox.information(parent, "No Data", "No attack alerts have been collected yet.")
+        return
+
+    default_name = f"attack_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    path, _ = QFileDialog.getSaveFileName(
+        parent,
+        "Save Attack Detection Report - CSV",
+        default_name,
+        "CSV Files (*.csv);;All Files (*)",
+    )
+    if not path:
+        return
+
+    try:
+        CsvExporter().export(alerts, path)
+        QMessageBox.information(parent, "Export Successful", f"Report saved to:\n\n{path}")
+    except Exception as exc:
+        QMessageBox.critical(parent, "Export Failed", str(exc))

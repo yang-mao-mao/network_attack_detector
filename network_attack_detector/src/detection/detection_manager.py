@@ -2,26 +2,32 @@ from __future__ import annotations
 
 import time
 
-from src.core.models import DetectionResult, PacketInfo
-from src.detection.behavior_engine import BehaviorEngine
-from src.detection.signature_engine import SignatureEngine
+from ..core.models import DetectionResult, PacketInfo
+from ..detection.behavior_engine import BehaviorEngine
+from ..detection.signature_engine import SignatureEngine
 
 
 class DetectionManager:
-    def __init__(self, signature_engine: SignatureEngine, behavior_engine: BehaviorEngine) -> None:
-        self.signature_engine = signature_engine
-        self.behavior_engine = behavior_engine
-
-    def detect(self, packet: PacketInfo) -> DetectionResult:
-        started = time.perf_counter()
-        alerts = []
-        alerts.extend(self.signature_engine.detect(packet))
-        alerts.extend(self.behavior_engine.update_and_detect(packet))
-        return DetectionResult(
-            packet_id=packet.packet_id,
-            matched=bool(alerts),
-            alerts=alerts,
-            engine_name="DetectionManager",
-            cost_ms=(time.perf_counter() - started) * 1000,
-        )
+    def __init__(self,
+                 signature_engine:SignatureEngine,
+                 behavior_engine:BehaviorEngine):
+        self.signature_engine=signature_engine
+        self.behavior_engine=behavior_engine
+        
+    def detect(self,packet:PacketInfo):
+        start_time=time.time()
+        matched=False
+        signature_result=self.signature_engine.detect(packet) 
+        behavior_result=self.behavior_engine.update_and_detect(packet)
+        alerts = [*signature_result,*behavior_result]
+        if len(alerts)>0:
+            matched=True
+        end_time=time.time()
+        cost_ms=(end_time-start_time)*1000
+        return DetectionResult(packet.packet_id,matched,alerts,"DetectionManager",cost_ms)
+    
+            
+            
+        
+    
 

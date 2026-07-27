@@ -2,6 +2,10 @@ class DetectorError(Exception):
     """Base exception for detector errors."""
 
 
+class ConfigError(DetectorError):
+    """Raised when configuration loading or validation fails."""
+
+
 class CaptureError(DetectorError):
     """Raised when packet capture fails."""
 
@@ -17,3 +21,6 @@ class RuleError(DetectorError):
 class DetectionError(DetectorError):
     """Raised when detection fails."""
 
+
+class StorageError(DetectorError):
+    """Raised when database or repository operations fail."""

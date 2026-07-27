@@ -1,0 +1,791 @@
+[
+  {
+    "name": "normal-home-page",
+    "packet": {
+      "packet_id": "DEMO-HTTP-01",
+      "timestamp": 1785114454.5155005,
+      "src_ip": "192.168.10.5",
+      "dst_ip": "10.0.0.10",
+      "src_port": 51000,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 74,
+      "payload_text": "GET /index.html HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\n\r\n",
+      "raw_summary": "normal-home-page",
+      "http": {
+        "method": "GET",
+        "host": "demo.local",
+        "url": "/index.html",
+        "path": "/index.html",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": ""
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "sql-injection-union-select",
+    "packet": {
+      "packet_id": "DEMO-HTTP-02",
+      "timestamp": 1785114455.5155005,
+      "src_ip": "192.168.10.10",
+      "dst_ip": "10.0.0.10",
+      "src_port": 51001,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 117,
+      "payload_text": "GET /search?q=1%20union%20select%20password%20from%20users HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\n\r\n",
+      "raw_summary": "sql-injection-union-select",
+      "http": {
+        "method": "GET",
+        "host": "demo.local",
+        "url": "/search?q=1 union select password from users",
+        "path": "/search",
+        "query": "q=1 union select password from users",
+        "user_agent": "securelog-demo",
+        "body": ""
+      }
+    },
+    "matched": true,
+    "alerts": [
+      {
+        "alert_id": "ALT-234f4c69fccb",
+        "timestamp": 1785114453.5166411,
+        "category": "SQL Injection",
+        "level": "High",
+        "rule_id": "SIG-SQLI-001",
+        "rule_name": "SQLi UNION SELECT",
+        "evidence": "union select",
+        "description": "Detects UNION based SQL injection attempts",
+        "suggestion": "Use parameterized queries and validate all untrusted input",
+        "packet_id": "DEMO-HTTP-02"
+      }
+    ]
+  },
+  {
+    "name": "xss-script-tag",
+    "packet": {
+      "packet_id": "DEMO-HTTP-03",
+      "timestamp": 1785114456.5155005,
+      "src_ip": "192.168.10.11",
+      "dst_ip": "10.0.0.10",
+      "src_port": 51002,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 110,
+      "payload_text": "GET /comment?text=%3Cscript%3Ealert(1)%3C/script%3E HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\n\r\n",
+      "raw_summary": "xss-script-tag",
+      "http": {
+        "method": "GET",
+        "host": "demo.local",
+        "url": "/comment?text=<script>alert(1)</script>",
+        "path": "/comment",
+        "query": "text=<script>alert(1)</script>",
+        "user_agent": "securelog-demo",
+        "body": ""
+      }
+    },
+    "matched": true,
+    "alerts": [
+      {
+        "alert_id": "ALT-e5e3b11e504d",
+        "timestamp": 1785114453.5172338,
+        "category": "XSS",
+        "level": "High",
+        "rule_id": "SIG-XSS-001",
+        "rule_name": "XSS Script Tag",
+        "evidence": "<script",
+        "description": "Detects embedded script tags in HTTP input",
+        "suggestion": "Apply context-aware output encoding and sanitize HTML input",
+        "packet_id": "DEMO-HTTP-03"
+      }
+    ]
+  },
+  {
+    "name": "command-injection-windows-cmd",
+    "packet": {
+      "packet_id": "DEMO-HTTP-04",
+      "timestamp": 1785114457.5155005,
+      "src_ip": "192.168.10.12",
+      "dst_ip": "10.0.0.10",
+      "src_port": 51003,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 93,
+      "payload_text": "GET /run?cmd=cmd.exe%20/c%20whoami HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\n\r\n",
+      "raw_summary": "command-injection-windows-cmd",
+      "http": {
+        "method": "GET",
+        "host": "demo.local",
+        "url": "/run?cmd=cmd.exe /c whoami",
+        "path": "/run",
+        "query": "cmd=cmd.exe /c whoami",
+        "user_agent": "securelog-demo",
+        "body": ""
+      }
+    },
+    "matched": true,
+    "alerts": [
+      {
+        "alert_id": "ALT-a0f3cce698ce",
+        "timestamp": 1785114453.5177245,
+        "category": "Command Injection",
+        "level": "High",
+        "rule_id": "SIG-CMDI-003",
+        "rule_name": "Command Injection Windows CMD",
+        "evidence": "cmd.exe /c",
+        "description": "Detects Windows command interpreter execution",
+        "suggestion": "Avoid command string construction and use constrained process APIs",
+        "packet_id": "DEMO-HTTP-04"
+      }
+    ]
+  },
+  {
+    "name": "port-scan-20",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-05",
+      "timestamp": 1785114458.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40005,
+      "dst_port": 20,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 20",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-21",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-06",
+      "timestamp": 1785114459.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40006,
+      "dst_port": 21,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 21",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-22",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-07",
+      "timestamp": 1785114460.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40007,
+      "dst_port": 22,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 22",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-23",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-08",
+      "timestamp": 1785114461.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40008,
+      "dst_port": 23,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 23",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-25",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-09",
+      "timestamp": 1785114462.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40009,
+      "dst_port": 25,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 25",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-53",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-10",
+      "timestamp": 1785114463.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40010,
+      "dst_port": 53,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 53",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-80",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-11",
+      "timestamp": 1785114464.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40011,
+      "dst_port": 80,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 80",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-110",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-12",
+      "timestamp": 1785114465.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40012,
+      "dst_port": 110,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 110",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-135",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-13",
+      "timestamp": 1785114466.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40013,
+      "dst_port": 135,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 135",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-139",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-14",
+      "timestamp": 1785114467.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40014,
+      "dst_port": 139,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 139",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-143",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-15",
+      "timestamp": 1785114468.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40015,
+      "dst_port": 143,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 143",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-443",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-16",
+      "timestamp": 1785114469.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40016,
+      "dst_port": 443,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 443",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-445",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-17",
+      "timestamp": 1785114470.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40017,
+      "dst_port": 445,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 445",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-993",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-18",
+      "timestamp": 1785114471.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40018,
+      "dst_port": 993,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 993",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-995",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-19",
+      "timestamp": 1785114472.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40019,
+      "dst_port": 995,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 995",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-1433",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-20",
+      "timestamp": 1785114473.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40020,
+      "dst_port": 1433,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 1433",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-1521",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-21",
+      "timestamp": 1785114474.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40021,
+      "dst_port": 1521,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 1521",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-3306",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-22",
+      "timestamp": 1785114475.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40022,
+      "dst_port": 3306,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 3306",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-5432",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-23",
+      "timestamp": 1785114476.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40023,
+      "dst_port": 5432,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 5432",
+      "http": null
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "port-scan-8080",
+    "packet": {
+      "packet_id": "DEMO-PORTSCAN-24",
+      "timestamp": 1785114477.5155005,
+      "src_ip": "192.168.20.50",
+      "dst_ip": "10.0.0.20",
+      "src_port": 40024,
+      "dst_port": 8080,
+      "protocol": "TCP",
+      "length": 60,
+      "payload_text": "",
+      "raw_summary": "demo TCP SYN scan to port 8080",
+      "http": null
+    },
+    "matched": true,
+    "alerts": [
+      {
+        "alert_id": "ALT-0411c0099b29",
+        "timestamp": 1785114453.518424,
+        "category": "Port Scan",
+        "level": "Medium",
+        "rule_id": "BEH-2001",
+        "rule_name": "Port scan detection",
+        "evidence": "distinct destination ports: 20",
+        "description": "Same source IP touches many ports of the same destination in a short time.",
+        "suggestion": "Check whether the source is an authorized scanner.",
+        "packet_id": "DEMO-PORTSCAN-24"
+      }
+    ]
+  },
+  {
+    "name": "brute-force-login-01",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-01",
+      "timestamp": 1785114478.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52001,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad1",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad1"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-02",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-02",
+      "timestamp": 1785114479.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52002,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad2",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad2"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-03",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-03",
+      "timestamp": 1785114480.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52003,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad3",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad3"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-04",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-04",
+      "timestamp": 1785114481.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52004,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad4",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad4"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-05",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-05",
+      "timestamp": 1785114482.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52005,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad5",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad5"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-06",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-06",
+      "timestamp": 1785114483.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52006,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad6",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad6"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-07",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-07",
+      "timestamp": 1785114484.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52007,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad7",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad7"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-08",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-08",
+      "timestamp": 1785114485.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52008,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad8",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad8"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-09",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-09",
+      "timestamp": 1785114486.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52009,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 147,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad9",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad9"
+      }
+    },
+    "matched": false,
+    "alerts": []
+  },
+  {
+    "name": "brute-force-login-10",
+    "packet": {
+      "packet_id": "DEMO-BRUTE-10",
+      "timestamp": 1785114487.5155005,
+      "src_ip": "192.168.30.77",
+      "dst_ip": "10.0.0.30",
+      "src_port": 52010,
+      "dst_port": 80,
+      "protocol": "HTTP",
+      "length": 148,
+      "payload_text": "POST /login HTTP/1.1\r\nHost: demo.local\r\nUser-Agent: securelog-demo\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nusername=admin&password=bad10",
+      "raw_summary": "brute-force-login",
+      "http": {
+        "method": "POST",
+        "host": "demo.local",
+        "url": "/login",
+        "path": "/login",
+        "query": "",
+        "user_agent": "securelog-demo",
+        "body": "username=admin&password=bad10"
+      }
+    },
+    "matched": true,
+    "alerts": [
+      {
+        "alert_id": "ALT-7715480cc2fb",
+        "timestamp": 1785114453.522419,
+        "category": "Brute Force",
+        "level": "High",
+        "rule_id": "BEH-2002",
+        "rule_name": "Brute force login detection",
+        "evidence": "login attempts in window: 10",
+        "description": "Same source IP repeatedly accesses login-related paths.",
+        "suggestion": "Enable rate limiting, CAPTCHA, and account lockout policies.",
+        "packet_id": "DEMO-BRUTE-10"
+      }
+    ]
+  }
+]

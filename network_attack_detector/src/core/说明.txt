@@ -1,0 +1,30 @@
+
+更改：
+1.CaptureState完整新增
+
+2.PacketInfo：
+   新增index,但是每个包的packet_id仍然保留
+   protocol不做任何改动，保留现有枚举类
+   新增raw_packet,但是类型提示暂时设置为Any
+   新增src_max,dst_max,eth_type,ip_version,ip_ttl,ip_proto(这里暂时保留字符串类型，应该不涉及其他模块)，tcp_seq，tcp_ack，tcp_flags，tcp_window，udp_length
+   http不做任何改动，仍然默认类型是httpInfo
+   raw_payload，decoded_payload似乎与现有的payload,payload_text字段重复，暂不新增
+   新增layers,summary()
+
+3.完整新增pacpPacket类
+   将raw_packet字段的类型提示设为Any
+
+4.HttpParserResult类与现有HttpInfo类存在重叠，并且其他人的模块也依赖于HttpInfo，不能直接替代
+  这里保留HttpInfo，把HttpParseResult作为兼容的别名，同时提供一个转换函数，用于把HttpParseResult转换为HttpInfo
+  你可以在自己的部分里保留HttpParseResult，但是主流程里，它已经与HttpInfo合并，你可以调用to_http_info()将其转换为HttpInfo
+  
+
+5.完整新增 DecodeResult类
+
+6.完整新增InterfaceInfo类
+
+注：  
+InterfaceInfo 用于网卡列表展示和选择，不会塞进每个 PacketInfo；
+PacketInfo 里只通过 interface: str | None 记录该包来自哪个网卡
+
+   

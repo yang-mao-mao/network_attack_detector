@@ -1,14 +1,51 @@
 version: 1
+disable_existing_loggers: false
+
 formatters:
-  simple:
+  brief:
+    format: "%(levelname)s - %(message)s"
+  standard:
     format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+  detailed:
+    format: "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s"
+
 handlers:
   console:
     class: logging.StreamHandler
     level: INFO
-    formatter: simple
+    formatter: standard
     stream: ext://sys.stdout
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: detailed
+    filename: data/logs/app.log
+    maxBytes: 1048576
+    backupCount: 3
+    encoding: utf-8
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: WARNING
+    formatter: detailed
+    filename: data/logs/error.log
+    maxBytes: 1048576
+    backupCount: 3
+    encoding: utf-8
+
+loggers:
+  src:
+    level: INFO
+    handlers: [console, file, error_file]
+    propagate: false
+  network_attack_detector:
+    level: INFO
+    handlers: [console, file, error_file]
+    propagate: false
+  main:
+    level: INFO
+    handlers: [console, file, error_file]
+    propagate: false
+
 root:
   level: INFO
-  handlers: [console]
-
+  handlers: [console, file, error_file]

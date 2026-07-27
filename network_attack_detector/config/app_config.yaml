@@ -1,23 +1,89 @@
 app:
   name: "Network Attack Detector"
   version: "0.1.0"
+  environment: "development"
+  debug: true
+  timezone: "Asia/Shanghai"
 
 paths:
+  app_config: "config/app_config.yaml"
+  logging_config: "config/logging_config.yaml"
   signature_rules: "data/rules/signature_rules.csv"
   behavior_rules: "data/rules/behavior_rules.json"
   database: "data/ids.db"
+  samples: "data/samples"
   exports: "data/exports"
+  logs: "data/logs"
 
 capture:
+  enabled: false
+  mode: "self_check"
+  default_interface: null
   default_bpf_filter: "ip and tcp"
   snaplen: 65535
   timeout_ms: 500
   promiscuous: true
+  max_packets: 0
+  pcap_file: null
+
+parser:
+  decode_payload: true
+  payload_encoding: "utf-8"
+  ignore_decode_errors: true
+  parse_http: true
+  http_ports: [80, 8080, 8000]
+  max_payload_text_length: 4096
+
+rules:
+  validate_on_load: true
+  load_signature_rules: true
+  load_behavior_rules: true
+  enabled_only_for_detection: true
+  allow_empty_rule_files: false
 
 detection:
+  enable_signature_detection: true
+  enable_behavior_detection: true
   max_payload_preview: 512
+  max_alerts_per_packet: 20
   default_port_scan_window_seconds: 60
   default_port_scan_threshold: 20
   default_bruteforce_window_seconds: 60
   default_bruteforce_threshold: 10
+  default_request_rate_window_seconds: 10
+  default_request_rate_threshold: 100
 
+storage:
+  initialize_on_start: true
+  save_packets: true
+  save_alerts: true
+  save_rules: false
+  recent_packets_limit: 100
+  recent_alerts_limit: 100
+  sqlite_timeout_seconds: 5
+  payload_preview_length: 512
+
+self_check:
+  enabled: true
+  request_method: "GET"
+  request_path: "/search"
+  request_query: "q=1%20union%20select%20password%20from%20users"
+  src_ip: "192.168.1.10"
+  dst_ip: "192.168.1.20"
+  src_port: 51000
+  dst_port: 80
+  host: "demo.local"
+  user_agent: "self-check"
+
+report:
+  enabled: true
+  default_csv_filename: "alerts.csv"
+  default_html_filename: "alerts.html"
+  include_packet_summary: true
+  encoding: "utf-8"
+
+ui:
+  enabled: false
+  refresh_interval_ms: 1000
+  max_alert_rows: 500
+  max_packet_rows: 500

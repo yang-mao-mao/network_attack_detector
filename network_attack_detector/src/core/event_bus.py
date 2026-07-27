@@ -10,9 +10,24 @@ class EventBus:
         self._handlers: dict[str, list[Callable[[Any], None]]] = defaultdict(list)
 
     def subscribe(self, event_name: str, handler: Callable[[Any], None]) -> None:
+        if handler in self._handlers[event_name]:
+            return
         self._handlers[event_name].append(handler)
 
-    def publish(self, event_name: str, payload: Any) -> None:
-        for handler in self._handlers.get(event_name, []):
+    def unsubscribe(self, event_name: str, handler: Callable[[Any], None]) -> None:
+        handlers = self._handlers.get(event_name)
+        if not handlers:
+            return
+
+        if handler in handlers:
+            handlers.remove(handler)
+
+        if not handlers:
+            self._handlers.pop(event_name, None)
+
+    def publish(self, event_name: str, payload: Any = None) -> None:
+        for handler in list(self._handlers.get(event_name, [])):
             handler(payload)
 
+    def clear(self) -> None:
+        self._handlers.clear()
