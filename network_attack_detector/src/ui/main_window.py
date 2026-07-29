@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QColor, QFont, QIcon, QEnterEvent, QPaintEvent, QPainter
+from PyQt6.QtGui import QColor, QFont, QEnterEvent, QPaintEvent, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -54,8 +54,8 @@ from statistic.statistic import StatisticWindow
 from text_editor.text_editor import NanoEditor
 
 # ── constants ────────────────────────────────────────────────────────────────
-SIDEBAR_WIDTH = 60
-BUTTON_SIZE = QSize(50, 50)
+SIDEBAR_WIDTH = 70
+BUTTON_SIZE = QSize(70, 70)
 SIDEBAR_BG = QColor(30, 30, 30)          # black-ish background
 LETTER_COLOR_DEFAULT = QColor(128, 128, 128)  # grey
 LETTER_COLOR_ACTIVE = QColor(255, 255, 255)   # white
@@ -162,11 +162,12 @@ class SideBarButton(QPushButton):
         # Foreground — pick the right image (active vs inactive), fall back to text
         image_path = self._image_active if self._active else self._image_inactive
         if image_path and Path(image_path).exists():
-            icon = QIcon(image_path)
-            pixmap = icon.pixmap(self.size() - QSize(12, 12))
-            x = (self.width() - pixmap.width()) // 2
-            y = (self.height() - pixmap.height()) // 2
-            painter.drawPixmap(x, y, pixmap)
+            pixmap = QPixmap(image_path)
+            if not pixmap.isNull():
+                # Display at original size, centred in the button
+                x = (self.width() - pixmap.width()) // 2
+                y = (self.height() - pixmap.height()) // 2
+                painter.drawPixmap(x, y, pixmap)
         else:
             if self._active or self._hovered:
                 colour = LETTER_COLOR_ACTIVE
